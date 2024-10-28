@@ -4,21 +4,25 @@ import torch.nn as nn
 from utils.graph_conv import calculate_laplacian_with_self_loop
 
 
+# 实现图卷积层，用于计算每个节点在当前时间步上的新特征
 class TGCNGraphConvolution(nn.Module):
     def __init__(self, adj, num_gru_units: int, output_dim: int, bias: float = 0.0):
         super(TGCNGraphConvolution, self).__init__()
-        self._num_gru_units = num_gru_units
-        self._output_dim = output_dim
-        self._bias_init_value = bias
-        self.register_buffer(
+        self._num_gru_units = num_gru_units  # GRU 隐藏层的单元数量，影响模型的输入特征维度
+        self._output_dim = output_dim  # 输出维度，表示每个节点的输出特征维数
+        self._bias_init_value = bias  # 偏置的初始值，默认为 0.0
+        self.register_buffer(  # 保存张量
+            # 将邻接矩阵adj转为带自环的图拉普拉斯矩阵
             "laplacian", calculate_laplacian_with_self_loop(torch.FloatTensor(adj))
         )
-        self.weights = nn.Parameter(
+        self.weights = nn.Parameter(  # 图卷积的权重矩阵
+            # 先将输入和隐藏状态的特征组合在一起，再映射到out_dim
             torch.FloatTensor(self._num_gru_units + 1, self._output_dim)
         )
         self.biases = nn.Parameter(torch.FloatTensor(self._output_dim))
         self.reset_parameters()
 
+    # 初始化 weights 和 biases
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.weights)
         nn.init.constant_(self.biases, self._bias_init_value)
@@ -68,6 +72,7 @@ class TGCNGraphConvolution(nn.Module):
         }
 
 
+#  实现了 TGCN 的单个时间步的计算，相当于一个 GRU 单元
 class TGCNCell(nn.Module):
     def __init__(self, adj, input_dim: int, hidden_dim: int):
         super(TGCNCell, self).__init__()
@@ -101,6 +106,7 @@ class TGCNCell(nn.Module):
         return {"input_dim": self._input_dim, "hidden_dim": self._hidden_dim}
 
 
+# 定义完整的 TGCN 模型，将 TGCNCell 扩展到整个序列
 class TGCN(nn.Module):
     def __init__(self, adj, hidden_dim: int, **kwargs):
         super(TGCN, self).__init__()

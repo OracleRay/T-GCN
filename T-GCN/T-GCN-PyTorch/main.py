@@ -35,8 +35,11 @@ def get_task(args, model, dm):
 
 
 def get_callbacks(args):
-    checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="train_loss")
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="train_loss")  # 自动保存最佳模型
+
+    # 用于在训练过程中绘制验证集的预测结果
     plot_validation_predictions_callback = utils.callbacks.PlotValidationPredictionsCallback(monitor="train_loss")
+
     callbacks = [
         checkpoint_callback,
         plot_validation_predictions_callback,
@@ -45,12 +48,13 @@ def get_callbacks(args):
 
 
 def main_supervised(args):
+    # 加载并处理数据
     dm = utils.data.SpatioTemporalCSVDataModule(
         feat_path=DATA_PATHS[args.data]["feat"], adj_path=DATA_PATHS[args.data]["adj"], **vars(args)
     )
-    model = get_model(args, dm)
-    task = get_task(args, model, dm)
-    callbacks = get_callbacks(args)
+    model = get_model(args, dm)  # 指定模型名称和数据模块
+    task = get_task(args, model, dm)  # 创建特定的预测任务
+    callbacks = get_callbacks(args)  # 回调函数，优化预测结果
     trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks)
     trainer.fit(task, dm)
     results = trainer.validate(datamodule=dm)
