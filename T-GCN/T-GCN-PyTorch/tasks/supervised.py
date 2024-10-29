@@ -50,6 +50,7 @@ class SupervisedForecastTask(pl.LightningModule):
         predictions = predictions.reshape((batch_size, num_nodes, -1))
         return predictions
 
+    # 提取共享的前向计算逻辑，避免代码重复
     def shared_step(self, batch, batch_idx):
         # (batch_size, seq_len/pre_len, num_nodes)
         x, y = batch
@@ -66,22 +67,33 @@ class SupervisedForecastTask(pl.LightningModule):
             return utils.losses.mse_with_regularizer_loss(inputs, targets, self)
         raise NameError("Loss not supported:", self._loss)
 
+    # 定义训练过程中的计算逻辑，是 PyTorch Lightning 的标准方法
     def training_step(self, batch, batch_idx):
         predictions, y = self.shared_step(batch, batch_idx)
         loss = self.loss(predictions, y)
         self.log("train_loss", loss)
         return loss
 
+    # 定义验证过程中的计算逻辑，也是 PyTorch Lightning 的标准方法。
     def validation_step(self, batch, batch_idx):
+        # 1. 获取预测结果和真实标签
         predictions, y = self.shared_step(batch, batch_idx)
+
+        # 2. 将预测结果和标签缩放回原始值范围
         predictions = predictions * self.feat_max_val
         y = y * self.feat_max_val
+
+        # 3. 计算损失
         loss = self.loss(predictions, y)
-        rmse = torch.sqrt(torchmetrics.functional.mean_squared_error(predictions, y))
-        mae = torchmetrics.functional.mean_absolute_error(predictions, y)
-        accuracy = utils.metrics.accuracy(predictions, y)
-        r2 = utils.metrics.r2(predictions, y)
-        explained_variance = utils.metrics.explained_variance(predictions, y)
+
+        # 4. 计算多种性能度量
+        rmse = torch.sqrt(torchmetrics.functional.mean_squared_error(predictions, y))  # 均方根误差
+        mae = torchmetrics.functional.mean_absolute_error(predictions, y)  # 平均绝对误差
+        accuracy = utils.metrics.accuracy(predictions, y)  # 准确率
+        r2 = utils.metrics.r2(predictions, y)  # 决定系数
+        explained_variance = utils.metrics.explained_variance(predictions, y)  # 解释方差
+
+        # 5. 将度量日志化，便于训练过程中跟踪模型性能
         metrics = {
             "val_loss": loss,
             "RMSE": rmse,
@@ -91,6 +103,8 @@ class SupervisedForecastTask(pl.LightningModule):
             "ExplainedVar": explained_variance,
         }
         self.log_dict(metrics)
+
+        # 6. 返回调整后的预测值和真实标签
         return predictions.reshape(batch[1].size()), y.reshape(batch[1].size())
 
     def test_step(self, batch, batch_idx):

@@ -29,12 +29,16 @@ class TGCNGraphConvolution(nn.Module):
 
     def forward(self, inputs, hidden_state):
         batch_size, num_nodes = inputs.shape
+
+        # 调整输入和隐藏状态的形状
         # inputs (batch_size, num_nodes) -> (batch_size, num_nodes, 1)
         inputs = inputs.reshape((batch_size, num_nodes, 1))
         # hidden_state (batch_size, num_nodes, num_gru_units)
         hidden_state = hidden_state.reshape(
             (batch_size, num_nodes, self._num_gru_units)
         )
+
+        # 1.先拼接 inputs 和 hidden_state （实现门控机制），再调整形状
         # [x, h] (batch_size, num_nodes, num_gru_units + 1)
         concatenation = torch.cat((inputs, hidden_state), dim=2)
         # [x, h] (num_nodes, num_gru_units + 1, batch_size)
@@ -43,6 +47,8 @@ class TGCNGraphConvolution(nn.Module):
         concatenation = concatenation.reshape(
             (num_nodes, (self._num_gru_units + 1) * batch_size)
         )
+
+        # 2.先图卷积操作，再恢复维度
         # A[x, h] (num_nodes, (num_gru_units + 1) * batch_size)
         a_times_concat = self.laplacian @ concatenation
         # A[x, h] (num_nodes, num_gru_units + 1, batch_size)
@@ -55,6 +61,8 @@ class TGCNGraphConvolution(nn.Module):
         a_times_concat = a_times_concat.reshape(
             (batch_size * num_nodes, self._num_gru_units + 1)
         )
+
+        # 3. 应用权重矩阵和偏置计算图卷积结果
         # A[x, h]W + b (batch_size * num_nodes, output_dim)
         outputs = a_times_concat @ self.weights + self.biases
         # A[x, h]W + b (batch_size, num_nodes, output_dim)
@@ -72,7 +80,7 @@ class TGCNGraphConvolution(nn.Module):
         }
 
 
-#  实现了 TGCN 的单个时间步的计算，相当于一个 GRU 单元
+# 实现了 TGCN 的单个时间步的计算，相当于一个 GRU 单元
 class TGCNCell(nn.Module):
     def __init__(self, adj, input_dim: int, hidden_dim: int):
         super(TGCNCell, self).__init__()

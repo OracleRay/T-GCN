@@ -10,11 +10,11 @@ class SpatioTemporalCSVDataModule(pl.LightningDataModule):
         self,
         feat_path: str,
         adj_path: str,
-        batch_size: int = 64,
-        seq_len: int = 12,
-        pre_len: int = 3,
-        split_ratio: float = 0.8,
-        normalize: bool = True,
+        batch_size: int = 64,  # 批次大小
+        seq_len: int = 12,  # 历史时间步数
+        pre_len: int = 3,  # 预测序列长度
+        split_ratio: float = 0.8,  # 训练集和验证集的分割比例
+        normalize: bool = True,  # 对特征数据进行归一化处理
         **kwargs
     ):
         super(SpatioTemporalCSVDataModule, self).__init__()

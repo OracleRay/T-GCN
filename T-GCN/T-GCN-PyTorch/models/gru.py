@@ -22,7 +22,7 @@ class GRULinear(nn.Module):
     # 初始化权重矩阵和偏置向量，以提高模型的训练效果和稳定性。
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.weights)
-        nn.init.constant_(self.biases, self._bias_init_value)
+        nn.init.constant_(self.biases, self._bias_init_value)  # 将偏置self.biases初始化为_bias_init_value的值
 
     def forward(self, inputs, hidden_state):
         batch_size, num_nodes = inputs.shape
